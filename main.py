@@ -114,18 +114,18 @@ def data_row_to_station(a):
 def handle_stations(a, session) -> dict:
     known_stations = session.query(models.Station).all()
     stations = [data_row_to_station(x) for x in a[0].iterrows()]
-    known_names = [x.name for x in known_stations]
-    all_stations = known_stations + [x for x in stations if x.name not in known_names]
-    session.add_all(all_stations)
+    known_abbrs = [x.abbr for x in known_stations]
+    new_stations = [x for x in stations if x.abbr not in known_abbrs]
+    session.add_all(new_stations)
     session.commit()
     stations: [models.Station] = session.query(models.Station).all()
 
-    return {x.name: x.id for x in stations}
+    return {x.abbr: x.id for x in stations}
 
 
 def handle_humidity_row(a, station_ids: dict):
     b = a[1]
-    id = station_ids[b["Station"]]
+    id = station_ids[b["Abbr."]]
     timestamp = dateutil.parser.parse(b["Measurement date"])
     val = b["Humidity %"]
 
@@ -134,9 +134,9 @@ def handle_humidity_row(a, station_ids: dict):
 
 def handle_temp_row(a, station_ids: dict):
     b = a[1]
-    id = station_ids[b["Station"]]
+    id = station_ids[b["Abbr."]]
     timestamp = dateutil.parser.parse(b["Measurement date"])
-    val = b["Temperature Â°C"]
+    val = b["Temperature °C"]
     return models.TemperatureMeasurement(station_id=id, timestamp=timestamp, value=val)
 
 
