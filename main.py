@@ -1,7 +1,9 @@
 import asyncio
 import io
+import logging
 import os
 from sqlite3 import Cursor
+from time import sleep
 
 import aiohttp
 import dateutil
@@ -168,14 +170,23 @@ def main(name):
     engine = sqlalchemy.create_engine(get_db_uri())
     Session = sessionmaker(bind=engine)
     session = Session()
+    fh = logging.FileHandler("meteogetter.log")
+    logger = logging.getLogger("meteogetter")
+    while True:
+        try:
+            # Use a breakpoint in the code line below to debug your script.
+            res = asyncio.run(run([url_temp, url_humidity]))
+            dataframes = read_respone(res)
+            station_ids = handle_stations(dataframes, session)
+            handle_measurements(dataframes, station_ids, session)
+            logger.info("Successfuly get")
+        except Exception as e:
+            logger.error(f"Error in getting {e}")
+        finally:
+            logger.info(f"Sleeping for {NAPTIME}")
+            sleep(NAPTIME)
 
-    # Use a breakpoint in the code line below to debug your script.
-    # res = asyncio.run(run([url_temp, url_humidity]))
-    dataframes = test_read()
-    station_ids = handle_stations(dataframes, session)
-    handle_measurements(dataframes, station_ids, session)
-
-    print(f"Hi, {name}")  # Press Ctrl+F8 to toggle the breakpoint.
+        print(f"Hi, {name}")  # Press Ctrl+F8 to toggle the breakpoint.
 
 
 # Press the green button in the gutter to run the script.
