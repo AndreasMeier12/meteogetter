@@ -12,6 +12,7 @@ class Station(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     altitude = Column(Float)
+    height = Column(String)
 
     def __repr__(self):
         return f"Station {self.id} {self.name} {self.abbr}"
