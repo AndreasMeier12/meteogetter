@@ -1,17 +1,15 @@
+import asyncio
+import io
 import os
-import urllib
-import urllib.error
-import urllib.request
 from sqlite3 import Cursor
 
 import aiohttp
-import asyncio
-import chardet
-import csv
-import io
-import sqlite3
-import sqlalchemy
+import dateutil
 import pandas
+import sqlalchemy
+from sqlalchemy.orm import sessionmaker
+
+import models
 
 NAPTIME = 60 * 60
 
@@ -77,12 +75,105 @@ def get_db_uri():
     )
 
 
+def get_all_stations(session):
+    session.query(models.Station)
+    return []
+
+
+def handle_res():
+
+    return None
+
+
+def test_read():
+    with open("22015_0800_temp.csv", "r") as temp, open(
+        "22015_0800_humid.csv"
+    ) as humid:
+        a = pandas.read_csv(temp)
+        b = pandas.read_csv(humid)
+        return [a, b]
+
+
+def data_row_to_station(a):
+    x = None
+    try:
+        b = a[1]
+        x = models.Station(
+            name=b["Station"],
+            abbr=b["Abbr."],
+            latitude=b["Latitude"],
+            longitude=b["Longitude"],
+            altitude=b["Measurement height m. a. sea level"],
+            height=b["Measurement height m. a. sea level"],
+        )
+        return x
+    except Exception as e:
+        return None
+
+
+def handle_stations(a, session) -> dict:
+    known_stations = session.query(models.Station).all()
+    stations = [data_row_to_station(x) for x in a[0].iterrows()]
+    known_names = [x.name for x in known_stations]
+    all_stations = known_stations + [x for x in stations if x.name not in known_names]
+    session.add_all(all_stations)
+    session.commit()
+    stations: [models.Station] = session.query(models.Station).all()
+
+    return {x.name: x.id for x in stations}
+
+
+def handle_humidity_row(a, station_ids: dict):
+    b = a[1]
+    id = station_ids[b["Station"]]
+    timestamp = dateutil.parser.parse(b["Measurement date"])
+    val = b["Humidity %"]
+
+    return models.HumidityMeasurement(station_id=id, timestamp=timestamp, value=val)
+
+
+def handle_temp_row(a, station_ids: dict):
+    b = a[1]
+    id = station_ids[b["Station"]]
+    timestamp = dateutil.parser.parse(b["Measurement date"])
+    val = b["Temperature Â°C"]
+    return models.TemperatureMeasurement(station_id=id, timestamp=timestamp, value=val)
+
+
+def handle_humidity(a, station_ids: dict):
+    return [handle_humidity_row(x, station_ids) for x in a.iterrows()]
+
+
+def handle_temp(a, station_ids: dict):
+    return [handle_temp_row(x, station_ids) for x in a.iterrows()]
+
+
+def get_handler(a: pandas.DataFrame):
+    if any("Temperature" in x for x in a.columns):
+        return handle_temp
+    if any("Humidity" in x for x in a.columns):
+        return handle_humidity
+
+
+def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
+    vals = []
+    for asdf in a:
+        handler = get_handler(asdf)
+        vals = vals + handler(asdf, station_ids)
+    session.add_all(vals)
+    session.commit()
+
+
 def main(name):
-    res = asyncio.run(run([url_temp, url_humidity]))
     engine = sqlalchemy.create_engine(get_db_uri())
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     # Use a breakpoint in the code line below to debug your script.
-    dataframes = read_respone(res)
+    # res = asyncio.run(run([url_temp, url_humidity]))
+    dataframes = test_read()
+    station_ids = handle_stations(dataframes, session)
+    handle_measurements(dataframes, station_ids, session)
 
     print(f"Hi, {name}")  # Press Ctrl+F8 to toggle the breakpoint.
 
