@@ -170,8 +170,12 @@ def main(name):
     engine = sqlalchemy.create_engine(get_db_uri())
     Session = sessionmaker(bind=engine)
     session = Session()
-    fh = logging.FileHandler("meteogetter.log")
-    logger = logging.getLogger("meteogetter")
+    logging.basicConfig(
+        filename="log.txt",
+        format="%(asctime)s %(levelname)-2s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     while True:
         try:
             # Use a breakpoint in the code line below to debug your script.
@@ -179,11 +183,11 @@ def main(name):
             dataframes = read_respone(res)
             station_ids = handle_stations(dataframes, session)
             handle_measurements(dataframes, station_ids, session)
-            logger.info("Successfuly get")
+            logging.info("Successfuly get")
         except Exception as e:
-            logger.error(f"Error in getting {e}")
+            logging.error(f"Error in getting {e}")
         finally:
-            logger.info(f"Sleeping for {NAPTIME}")
+            logging.info(f"Sleeping for {NAPTIME}")
             sleep(NAPTIME)
 
         print(f"Hi, {name}")  # Press Ctrl+F8 to toggle the breakpoint.
