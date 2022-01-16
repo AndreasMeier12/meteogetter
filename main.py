@@ -186,11 +186,8 @@ def main(name):
             logging.info("Successfuly get")
         except Exception as e:
             logging.error(f"Error in getting {e}")
-        finally:
-            logging.info(f"Sleeping for {NAPTIME}")
-            sleep(NAPTIME)
-
-        print(f"Hi, {name}")  # Press Ctrl+F8 to toggle the breakpoint.
+        logging.info(f"Sleeping for {NAPTIME}")
+        sleep(NAPTIME)
 
 
 # Press the green button in the gutter to run the script.
