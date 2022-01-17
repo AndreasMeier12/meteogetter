@@ -176,18 +176,16 @@ def main(name):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=logging.INFO,
     )
-    while True:
-        try:
-            # Use a breakpoint in the code line below to debug your script.
-            res = asyncio.run(run([url_temp, url_humidity]))
-            dataframes = read_respone(res)
-            station_ids = handle_stations(dataframes, session)
-            handle_measurements(dataframes, station_ids, session)
-            logging.info("Successfuly get")
-        except Exception as e:
-            logging.error(f"Error in getting {e}")
-        logging.info(f"Sleeping for {NAPTIME}")
-        sleep(NAPTIME)
+    try:
+        # Use a breakpoint in the code line below to debug your script.
+        res = asyncio.run(run([url_temp, url_humidity]))
+        dataframes = read_respone(res)
+        station_ids = handle_stations(dataframes, session)
+        handle_measurements(dataframes, station_ids, session)
+        logging.info("Successfuly get")
+    except Exception as e:
+        logging.error(f"Error in getting {e}")
+    logging.info(f"Sleeping for {NAPTIME}")
 
 
 # Press the green button in the gutter to run the script.
