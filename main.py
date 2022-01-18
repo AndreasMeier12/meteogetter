@@ -184,7 +184,7 @@ def main(name):
         handle_measurements(dataframes, station_ids, session)
         logging.info("Successfuly get")
     except Exception as e:
-        logging.error(f"Error in getting {e}\n {e.with_traceback()}")
+        logging.error(f"Error in getting {e}\n {e.with_traceback(None)}")
     logging.info(f"Sleeping for {NAPTIME}")
 
 
