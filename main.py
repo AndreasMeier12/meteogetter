@@ -10,6 +10,7 @@ import dateutil
 import pandas
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
+from returns.result import Result, safe
 
 import models
 
@@ -125,7 +126,8 @@ def handle_stations(a, session) -> dict:
     return {x.abbr: x.id for x in stations}
 
 
-def handle_humidity_row(a, station_ids: dict):
+@safe
+def handle_humidity_row(a, station_ids: dict) -> Result:
     b = a[1]
     id = station_ids[b["Abbr."]]
     timestamp = dateutil.parser.parse(b["Measurement date"])
@@ -134,7 +136,8 @@ def handle_humidity_row(a, station_ids: dict):
     return models.HumidityMeasurement(station_id=id, timestamp=timestamp, value=val)
 
 
-def handle_temp_row(a, station_ids: dict):
+@safe
+def handle_temp_row(a, station_ids: dict) -> Result:
     b = a[1]
     id = station_ids[b["Abbr."]]
     timestamp = dateutil.parser.parse(b["Measurement date"])
@@ -142,28 +145,25 @@ def handle_temp_row(a, station_ids: dict):
     return models.TemperatureMeasurement(station_id=id, timestamp=timestamp, value=val)
 
 
-def handle_humidity(a, station_ids: dict):
-    return [handle_humidity_row(x, station_ids) for x in a.iterrows()]
-
-
-def handle_temp(a, station_ids: dict):
-    return [handle_temp_row(x, station_ids) for x in a.iterrows()]
-
-
 def get_handler(a: pandas.DataFrame):
     if any("Temperature" in x for x in a.columns):
-        return handle_temp
+        return handle_temp_row
     if any("Humidity" in x for x in a.columns):
-        return handle_humidity
+        return handle_humidity_row
 
 
 def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
     vals = []
+    bwoken = []
     for asdf in a:
         handler = get_handler(asdf)
-        vals = vals + handler(asdf, station_ids)
+        b = [(handler(x, station_ids), x) for x in asdf.iterrows()]
+        vals = vals + [x for x, _ in b if x.value_or(False)]
+        errors = [y for x, y in b if x.value_or("Error") == "Error"]
+        bwoken = bwoken + errors
     session.add_all(vals)
     session.commit()
+    logging.error(bwoken)
 
 
 def main(name):
@@ -176,16 +176,12 @@ def main(name):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=logging.INFO,
     )
-    try:
-        # Use a breakpoint in the code line below to debug your script.
-        res = asyncio.run(run([url_temp, url_humidity]))
-        dataframes = read_respone(res)
-        station_ids = handle_stations(dataframes, session)
-        handle_measurements(dataframes, station_ids, session)
-        logging.info("Successfuly get")
-    except Exception as e:
-        logging.error(f"Error in getting {e}\n {e.with_traceback(None)}")
-    logging.info(f"Sleeping for {NAPTIME}")
+    # Use a breakpoint in the code line below to debug your script.
+    res = asyncio.run(run([url_temp, url_humidity]))
+    dataframes = read_respone(res)
+    station_ids = handle_stations(dataframes, session)
+    handle_measurements(dataframes, station_ids, session)
+    logging.info("Successfuly get")
 
 
 # Press the green button in the gutter to run the script.
