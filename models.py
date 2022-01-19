@@ -1,7 +1,8 @@
+import dateutil
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, orm
 
 
 class Station(Base):
@@ -28,6 +29,10 @@ class TemperatureMeasurement(Base):
     def __repr__(self):
         return f"Station {self.station_id} temp at {self.timestamp}: {self.value}"
 
+    @orm.reconstructor
+    def init_on_load(self):
+        self.timestamp = dateutil.parser.parse(self.timestamp)
+
 
 class HumidityMeasurement(Base):
     __tablename__ = "humidity_measurement"
@@ -35,6 +40,10 @@ class HumidityMeasurement(Base):
     station_id = Column(Integer, ForeignKey("station.id"), primary_key=True)
     timestamp = Column(Integer, primary_key=True)
     value = Column(Float)
+
+    @orm.reconstructor
+    def init_on_load(self):
+        self.timestamp = dateutil.parser.parse(self.timestamp)
 
     def __repr__(self):
         return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
