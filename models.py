@@ -33,6 +33,13 @@ class TemperatureMeasurement(Base):
     def init_on_load(self):
         self.timestamp = dateutil.parser.parse(self.timestamp)
 
+    def to_dict(self):
+        return {
+            "value": self.value,
+            "timestamp": self.timestamp,
+            "station_id": self.station_id,
+        }
+
 
 class HumidityMeasurement(Base):
     __tablename__ = "humidity_measurement"
@@ -47,3 +54,10 @@ class HumidityMeasurement(Base):
 
     def __repr__(self):
         return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
+
+    def to_dict(self):
+        return {
+            "value": self.value,
+            "timestamp": self.timestamp,
+            "station_id": self.station_id,
+        }
