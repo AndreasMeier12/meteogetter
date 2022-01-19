@@ -158,7 +158,7 @@ def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
     for asdf in a:
         handler = get_handler(asdf)
         b = [(handler(x, station_ids), x) for x in asdf.iterrows()]
-        vals = vals + [x for x, _ in b if x.value_or(False)]
+        vals = vals + [x.value_or(False) for x, _ in b if x.value_or(False)]
         errors = [y for x, y in b if x.value_or("Error") == "Error"]
         bwoken = bwoken + errors
     session.add_all(vals)
