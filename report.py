@@ -92,6 +92,12 @@ def read_balcony_data():
     return balcony
 
 
+def print_stats(a: pandas.DataFrame) -> None:
+    print(a.resample("M", on="timestamp").mean())
+    print(a.resample("D", on="timestamp").mean().resample("M").min())
+    print(a.resample("D", on="timestamp").mean().resample("M").max())
+
+
 if __name__ == "__main__":
     with plt.style.context("dark_background"):
         engine = sqlalchemy.create_engine(get_db_uri())
@@ -130,4 +136,4 @@ if __name__ == "__main__":
         ax.set_xlabel("Date")
         plt.show()
 
-        print("asdf")
+        print_stats(balcony)
