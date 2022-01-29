@@ -49,6 +49,14 @@ def match_values(
     return pandas.DataFrame.from_records([x for x in temp if x is not None])
 
 
+def query_db_to_dataframe(session, cls_to_query) -> pandas.DataFrame:
+    vals = session.query(cls_to_query).filter(cls_to_query.station_id == 24).all()
+    datty_frame: pandas.DataFrame = pandas.DataFrame.from_records(
+        [x.to_dict() for x in vals]
+    )
+    return datty_frame
+
+
 if __name__ == "__main__":
     with plt.style.context("dark_background"):
         engine = sqlalchemy.create_engine(get_db_uri())
@@ -59,22 +67,30 @@ if __name__ == "__main__":
             .filter(models.TemperatureMeasurement.station_id == 24)
             .all()
         )
-        datty_frame: pandas.DataFrame = pandas.DataFrame.from_records(
-            [x.to_dict() for x in temps]
+        meteo_temps: pandas.DataFrame = query_db_to_dataframe(
+            session, models.TemperatureMeasurement
         )
+        meteo_humidities: pandas.DataFrame = query_db_to_dataframe(
+            session, models.HumidityMeasurement
+        )
+        meteo_humidities.name = "meteo"
+
         balcony = pandas.read_csv("BALCONY.CSV")
         balcony["timestamp"] = pandas.to_datetime(balcony["timestamp"])
         balcony.name = "balcony"
-        datty_frame["timestamp"] = pandas.to_datetime(datty_frame["timestamp"])
-        datty_frame.name = "meteo"
-        ax = datty_frame.plot(x="timestamp", y="temperature")
+        meteo_temps["timestamp"] = pandas.to_datetime(meteo_temps["timestamp"])
+        meteo_temps.name = "meteo"
+        ax = meteo_temps.plot(x="timestamp", y="temperature")
         balcony.plot(x="timestamp", y="temperature", ax=ax)
 
         # balcony.Timestamp.groupby(pandas.Grouper(freq='M'))
         plt.show()
 
-        matched_temps = match_values(datty_frame, balcony, "temperature")
+        matched_temps = match_values(meteo_temps, balcony, "temperature")
         matched_temps.plot(x="timestamp", y="delta_temperature")
         plt.show()
 
+        matched_humidities = match_values(meteo_humidities, balcony, "humidity")
+        matched_humidities.plot(x="timestamp", y="delta_humidity")
+        plt.show()
         print("asdf")
