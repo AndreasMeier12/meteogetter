@@ -35,7 +35,7 @@ class TemperatureMeasurement(Base):
 
     def to_dict(self):
         return {
-            "value": self.value,
+            "temperature": self.value,
             "timestamp": self.timestamp,
             "station_id": self.station_id,
         }
@@ -57,7 +57,7 @@ class HumidityMeasurement(Base):
 
     def to_dict(self):
         return {
-            "value": self.value,
+            "humidity": self.value,
             "timestamp": self.timestamp,
             "station_id": self.station_id,
         }

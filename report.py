@@ -20,6 +20,10 @@ if __name__ == "__main__":
         datty_frame: pandas.DataFrame = pandas.DataFrame.from_records(
             [x.to_dict() for x in temps]
         )
-        datty_frame.plot(x="timestamp", y="value")
+        balcony = pandas.read_csv("BALCONY.CSV")
+        balcony["timestamp"] = pandas.to_datetime(balcony["timestamp"])
+        ax = datty_frame.plot(x="timestamp", y="temperature")
+        balcony.plot(x="timestamp", y="temperature", ax=ax)
+        # balcony.Timestamp.groupby(pandas.Grouper(freq='M'))
         plt.show()
         print("asdf")
