@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
+import math
 
 import models
 from main import get_db_uri
@@ -17,6 +18,18 @@ def get_min_by_month():
 
 def get_max_by_month():
     pass
+
+
+def calculate_crude_dew_point_for_row(row: pandas.Series):
+    if math.isnan(row["temperature"]):
+        return None
+    if math.isnan(row["humidity"]):
+        return None
+    return row["temperature"] - ((100 - row["humidity"]) / 5)
+
+
+def calculate_crude_dew_point(a: pandas.DataFrame):
+    a["dew_point"] = a.apply(calculate_crude_dew_point_for_row, axis=1)
 
 
 def pair_closest_datapoint_in_time(
@@ -67,7 +80,16 @@ def fetch_meteo_dataframe(session) -> pandas.DataFrame:
     )
     res = meteo_humidities.merge(meteo_temps, on="timestamp", how="left")
     res.name = "meteo"
+    calculate_crude_dew_point(res)
     return res
+
+
+def read_balcony_data():
+    balcony = pandas.read_csv("BALCONY.CSV")
+    balcony["timestamp"] = pandas.to_datetime(balcony["timestamp"])
+    balcony.name = "balcony"
+    calculate_crude_dew_point(balcony)
+    return balcony
 
 
 if __name__ == "__main__":
@@ -82,9 +104,7 @@ if __name__ == "__main__":
         )
         meteo = fetch_meteo_dataframe(session)
 
-        balcony = pandas.read_csv("BALCONY.CSV")
-        balcony["timestamp"] = pandas.to_datetime(balcony["timestamp"])
-        balcony.name = "balcony"
+        balcony = read_balcony_data()
         ax = meteo.plot(x="timestamp", y="temperature")
         balcony.plot(x="timestamp", y="temperature", ax=ax)
         # balcony.Timestamp.groupby(pandas.Grouper(freq='M'))
@@ -97,4 +117,8 @@ if __name__ == "__main__":
         matched_humidities = match_values(meteo, balcony, "humidity")
         matched_humidities.plot(x="timestamp", y="delta_humidity")
         plt.show()
+
+        matched_dewpoints = match_values(meteo, balcony, "dew_point")
+        matched_dewpoints.plot(x="timestamp", y="delta_dew_point")
+
         print("asdf")
