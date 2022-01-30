@@ -61,3 +61,49 @@ class HumidityMeasurement(Base):
             "timestamp": self.timestamp,
             "station_id": self.station_id,
         }
+
+
+class PrecipitationMeasurement(Base):
+    __tablename__ = "humidity_measurement"
+
+    station_id = Column(Integer, ForeignKey("station.id"), primary_key=True)
+    timestamp = Column(Integer, primary_key=True)
+    value = Column(Float)
+
+    @orm.reconstructor
+    def init_on_load(self):
+        self.timestamp = dateutil.parser.parse(self.timestamp)
+
+    def __repr__(self):
+        return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
+
+    def to_dict(self):
+        return {
+            "humidity": self.value,
+            "timestamp": self.timestamp,
+            "station_id": self.station_id,
+        }
+
+
+class WindMeasurement(Base):
+    __tablename__ = "humidity_measurement"
+
+    station_id = Column(Integer, ForeignKey("station.id"), primary_key=True)
+    timestamp = Column(Integer, primary_key=True)
+    value = Column(Float)
+    direction = Column(Float)
+
+    @orm.reconstructor
+    def init_on_load(self):
+        self.timestamp = dateutil.parser.parse(self.timestamp)
+
+    def __repr__(self):
+        return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
+
+    def to_dict(self):
+        return {
+            "windspeed": self.value,
+            "winddirection": self.direction,
+            "timestamp": self.timestamp,
+            "station_id": self.station_id,
+        }

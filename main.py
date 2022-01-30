@@ -18,6 +18,8 @@ NAPTIME = 60 * 60
 
 url_temp = "https://data.geo.admin.ch/ch.meteoschweiz.messwerte-lufttemperatur-10min/ch.meteoschweiz.messwerte-lufttemperatur-10min_en.csv"
 url_humidity = "https://data.geo.admin.ch/ch.meteoschweiz.messwerte-luftfeuchtigkeit-10min/ch.meteoschweiz.messwerte-luftfeuchtigkeit-10min_en.csv"
+url_wind = "https://data.geo.admin.ch/ch.meteoschweiz.messwerte-windgeschwindigkeit-kmh-10min/ch.meteoschweiz.messwerte-windgeschwindigkeit-kmh-10min_en.csv"
+url_precipitation = "https://data.geo.admin.ch/ch.meteoschweiz.messwerte-niederschlag-10min/ch.meteoschweiz.messwerte-niederschlag-10min_en.csv"
 
 
 def parse_to_dataframe(b):
@@ -137,6 +139,18 @@ def handle_humidity_row(a, station_ids: dict) -> Result:
 
 
 @safe
+def handle_precipitation_row(a, station_ids: dict) -> Result:
+    b = a[1]
+    id = station_ids[b["Abbr."]]
+    timestamp = dateutil.parser.parse(b["Measurement date"])
+    val = b["Precipitation mm"]
+
+    return models.PrecipitationMeasurement(
+        station_id=id, timestamp=timestamp, value=val
+    )
+
+
+@safe
 def handle_temp_row(a, station_ids: dict) -> Result:
     b = a[1]
     id = station_ids[b["Abbr."]]
@@ -145,11 +159,27 @@ def handle_temp_row(a, station_ids: dict) -> Result:
     return models.TemperatureMeasurement(station_id=id, timestamp=timestamp, value=val)
 
 
+@safe
+def handle_wind_row(a, station_ids: dict) -> Result:
+    b = a[1]
+    id = station_ids[b["Abbr."]]
+    timestamp = dateutil.parser.parse(b["Measurement date"])
+    val = b["Wind km/h"]
+    direction = b["Wind direction °"]
+    return models.TemperatureMeasurement(
+        station_id=id, timestamp=timestamp, value=val, direction=direction
+    )
+
+
 def get_handler(a: pandas.DataFrame):
     if any("Temperature" in x for x in a.columns):
         return handle_temp_row
     if any("Humidity" in x for x in a.columns):
         return handle_humidity_row
+    if any("Wind km/h" in x for x in a.columns):
+        return handle_wind_row
+    if any("Precipitation mm" in x for x in a.columns):
+        return handle_wind_row
 
 
 def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
@@ -177,7 +207,7 @@ def main(name):
         level=logging.INFO,
     )
     # Use a breakpoint in the code line below to debug your script.
-    res = asyncio.run(run([url_temp, url_humidity]))
+    res = asyncio.run(run([url_temp, url_humidity, url_precipitation, url_wind]))
     dataframes = read_respone(res)
     station_ids = handle_stations(dataframes, session)
     handle_measurements(dataframes, station_ids, session)
