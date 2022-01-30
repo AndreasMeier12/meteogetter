@@ -64,7 +64,7 @@ class HumidityMeasurement(Base):
 
 
 class PrecipitationMeasurement(Base):
-    __tablename__ = "humidity_measurement"
+    __tablename__ = "precipitation_measurement"
 
     station_id = Column(Integer, ForeignKey("station.id"), primary_key=True)
     timestamp = Column(Integer, primary_key=True)
@@ -86,7 +86,7 @@ class PrecipitationMeasurement(Base):
 
 
 class WindMeasurement(Base):
-    __tablename__ = "humidity_measurement"
+    __tablename__ = "wind_measurement"
 
     station_id = Column(Integer, ForeignKey("station.id"), primary_key=True)
     timestamp = Column(Integer, primary_key=True)
