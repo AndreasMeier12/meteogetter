@@ -92,10 +92,24 @@ def read_balcony_data():
     return balcony
 
 
-def print_stats(a: pandas.DataFrame) -> None:
-    print(a.resample("M", on="timestamp").mean())
-    print(a.resample("D", on="timestamp").mean().resample("M").min())
-    print(a.resample("D", on="timestamp").mean().resample("M").max())
+def statsify(a: pandas.DataFrame):
+    b = a.resample("M", on="timestamp").mean()
+    c = a.resample("D", on="timestamp").mean().resample("M").min()
+    d = a.resample("D", on="timestamp").mean().resample("M").max()
+    return b.join(c, rsuffix="_low").join(d, rsuffix="_high")
+
+
+def print_stats(a: pandas.DataFrame, b: pandas.DataFrame) -> None:
+    a_new = statsify(a)
+    b_new = statsify(b)
+    deltas = a_new.sub(b_new)
+    deltas.name = "deltas"
+    a_new.name = a.name
+    b_new.name = b.name
+
+    print(a_new)
+    print(b_new)
+    print(deltas)
 
 
 if __name__ == "__main__":
@@ -136,4 +150,4 @@ if __name__ == "__main__":
         ax.set_xlabel("Date")
         plt.show()
 
-        print_stats(balcony)
+        print_stats(balcony, meteo)
