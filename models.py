@@ -75,7 +75,7 @@ class PrecipitationMeasurement(Base):
         self.timestamp = dateutil.parser.parse(self.timestamp)
 
     def __repr__(self):
-        return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
+        return f"Station {self.station_id} preiciptation at {self.timestamp}: {self.value} mm"
 
     def to_dict(self):
         return {
@@ -98,7 +98,7 @@ class WindMeasurement(Base):
         self.timestamp = dateutil.parser.parse(self.timestamp)
 
     def __repr__(self):
-        return f"Station {self.station_id} humidity at {self.timestamp}: {self.value}"
+        return f"Station {self.station_id} windspeed, direction at {self.timestamp}: {self.value}, {self.direction}"
 
     def to_dict(self):
         return {
