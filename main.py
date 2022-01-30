@@ -166,7 +166,7 @@ def handle_wind_row(a, station_ids: dict) -> Result:
     timestamp = dateutil.parser.parse(b["Measurement date"])
     val = b["Wind km/h"]
     direction = b["Wind direction °"]
-    return models.TemperatureMeasurement(
+    return models.WindMeasurement(
         station_id=id, timestamp=timestamp, value=val, direction=direction
     )
 
@@ -179,7 +179,7 @@ def get_handler(a: pandas.DataFrame):
     if any("Wind km/h" in x for x in a.columns):
         return handle_wind_row
     if any("Precipitation mm" in x for x in a.columns):
-        return handle_wind_row
+        return handle_precipitation_row
 
 
 def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
