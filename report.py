@@ -3,6 +3,7 @@ import datetime
 import matplotlib.pyplot as plt
 import pandas
 import sqlalchemy
+from dateutil.rrule import rrule, MONTHLY
 from sqlalchemy.orm import sessionmaker
 import math
 
@@ -74,10 +75,10 @@ def query_db_to_dataframe(session, cls_to_query) -> pandas.DataFrame:
 def fetch_meteo_dataframe(session) -> pandas.DataFrame:
     meteo_temps: pandas.DataFrame = query_db_to_dataframe(
         session, models.TemperatureMeasurement
-    )
+    ).drop(columns=["station_id"])
     meteo_humidities: pandas.DataFrame = query_db_to_dataframe(
         session, models.HumidityMeasurement
-    )
+    ).drop(columns=["station_id"])
     res = meteo_humidities.merge(meteo_temps, on="timestamp", how="left")
     res.name = "meteo"
     calculate_crude_dew_point(res)
@@ -112,6 +113,59 @@ def print_stats(a: pandas.DataFrame, b: pandas.DataFrame) -> None:
     print(deltas)
 
 
+def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
+    start, end = min(meteo["timestamp"]), max(meteo["timestamp"])
+    diff_month = lambda e, s: (e.year - s.year) * 12 + e.month - s.month
+
+    months = [
+        (d.month, d.year)
+        for d in rrule(MONTHLY, count=diff_month(end, start) + 1, dtstart=start)
+    ]
+    for m, y in months:
+        meteo_a = meteo[meteo["timestamp"].dt.month == m]
+        meteo_f = meteo_a[meteo_a["timestamp"].dt.year == y]
+        meteo_f.name = meteo.name
+
+        balcony_a = balcony[balcony["timestamp"].dt.month == m]
+        balcony_f = balcony_a[balcony_a["timestamp"].dt.month == m]
+        balcony_f.name = balcony.name
+        ax = meteo_f.plot(x="timestamp", y="temperature")
+        balcony_f.plot(x="timestamp", y="temperature", ax=ax)
+        ax.set_ylabel("Temperature /°C")
+        ax.set_xlabel("Date")
+        plt.title = f"{y} - {m}"
+        plt.show()
+
+        matched_temps = match_values(meteo_f, balcony_f, "temperature")
+        plot_matched(matched_temps, "delta_temperature", "Δ Temperature /°C", m=m, y=y)
+
+        matched_humidities = match_values(meteo_f, balcony_f, "humidity")
+        plot_matched(
+            matched_humidities, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+        )
+
+        matched_humidities = match_values(meteo_f, balcony_f, "humidity")
+        plot_matched(
+            matched_humidities, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+        )
+
+        matched_dew_points = match_values(meteo_f, balcony_f, "dew_point")
+        plot_matched(matched_dew_points, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
+
+
+def plot_matched(
+    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
+) -> None:
+    if a.empty:
+        return
+    ax = a.plot(x="timestamp", y=colname)
+    ax.set_ylabel(label_name)
+    ax.set_xlabel("Date")
+    if y and m:
+        plt.title = f"{y} - {m}"
+    plt.show()
+
+
 if __name__ == "__main__":
     with plt.style.context("dark_background"):
         engine = sqlalchemy.create_engine(get_db_uri())
@@ -125,29 +179,6 @@ if __name__ == "__main__":
         meteo = fetch_meteo_dataframe(session)
 
         balcony = read_balcony_data()
-        ax = meteo.plot(x="timestamp", y="temperature")
-        balcony.plot(x="timestamp", y="temperature", ax=ax)
-        # balcony.Timestamp.groupby(pandas.Grouper(freq='M'))
-        ax.set_ylabel("Temperature /°C")
-        ax.set_xlabel("Date")
-        plt.show()
-
-        matched_temps = match_values(meteo, balcony, "temperature")
-        ax = matched_temps.plot(x="timestamp", y="delta_temperature")
-        ax.set_ylabel("Δ Temperature /°C")
-        ax.set_xlabel("Date")
-        plt.show()
-
-        matched_humidities = match_values(meteo, balcony, "humidity")
-        ax = matched_humidities.plot(x="timestamp", y="delta_humidity")
-        ax.set_ylabel("Realitive humidity /%")
-        ax.set_xlabel("Date")
-        plt.show()
-
-        matched_dewpoints = match_values(meteo, balcony, "dew_point")
-        ax = matched_dewpoints.plot(x="timestamp", y="delta_dew_point")
-        ax.set_ylabel("Δ Temperature /°C")
-        ax.set_xlabel("Date")
-        plt.show()
+        plot_by_month(balcony, meteo)
 
         print_stats(balcony, meteo)
