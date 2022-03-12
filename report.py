@@ -34,7 +34,7 @@ def calculate_crude_dew_point(a: pandas.DataFrame):
 
 
 def pair_closest_datapoint_in_time(
-    a: pandas.Series, a_name: str, b: pandas.DataFrame, colname: str
+    a: pandas.Series, a_name: str, b: pandas.DataFrame, colnames: [str]
 ) -> pandas.Series:
     timestamp = a["timestamp"]
     start = timestamp - ALIGNMENT_CUTOFF
@@ -44,21 +44,20 @@ def pair_closest_datapoint_in_time(
         return None
     else:
         asdf = candidates.loc[[b["timestamp"].sub(timestamp).abs().idxmin()]]
-        return pandas.Series(
-            {
-                "timestamp": timestamp,
-                f"{colname}_{a_name}": a[colname],
-                f"{colname}_{b.name}": asdf[colname],
-                f"delta_{colname}": asdf[colname].values[0] - a[colname],
-            }
-        )
+        res = {}
+        for colname in colnames:
+            res[f"{colname}_{a_name}"] = a[colname]
+            res[f"{colname}_{b.name}"] = (asdf[colname]).values[0]
+            res[f"delta_{colname}"] = (asdf[colname] - a[colname]).values[0]
+        res["timestamp"] = timestamp
+        return pandas.Series(res)
 
 
 def match_values(
-    a: pandas.DataFrame, b: pandas.DataFrame, colname: str
+    a: pandas.DataFrame, b: pandas.DataFrame, colnames: [str]
 ) -> pandas.DataFrame:
     temp = [
-        pair_closest_datapoint_in_time(x[1], a.name, b, colname) for x in a.iterrows()
+        pair_closest_datapoint_in_time(x[1], a.name, b, colnames) for x in a.iterrows()
     ]
     return pandas.DataFrame.from_records([x for x in temp if x is not None])
 
@@ -136,21 +135,20 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
         plt.title = f"{y} - {m}"
         plt.show()
 
-        matched_temps = match_values(meteo_f, balcony_f, "temperature")
-        plot_matched(matched_temps, "delta_temperature", "Δ Temperature /°C", m=m, y=y)
+        matched_vals = match_values(
+            meteo_f, balcony_f, ["temperature", "humidity", "dew_point"]
+        )
+        plot_matched(matched_vals, "delta_temperature", "Δ Temperature /°C", m=m, y=y)
 
-        matched_humidities = match_values(meteo_f, balcony_f, "humidity")
         plot_matched(
-            matched_humidities, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+            matched_vals, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
         )
 
-        matched_humidities = match_values(meteo_f, balcony_f, "humidity")
         plot_matched(
-            matched_humidities, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+            matched_vals, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
         )
 
-        matched_dew_points = match_values(meteo_f, balcony_f, "dew_point")
-        plot_matched(matched_dew_points, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
+        plot_matched(matched_vals, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
 
 
 def plot_matched(
