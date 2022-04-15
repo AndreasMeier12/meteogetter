@@ -137,23 +137,19 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
     matched_vals = match_values(
         meteo, balcony, ["temperature", "humidity", "dew_point"]
     )
-    matches_by_month = split_by_month_and_year(matched_vals)
     meteo_by_months = split_by_month_and_year(meteo)
     balcony_by_month = split_by_month_and_year(balcony)
-    all_months = sorted(
-        list(
-            set(matches_by_month).union(
-                set(meteo_by_months).union(set(balcony_by_month))
-            )
-        )
-    )
+    all_months = sorted(list(set(meteo_by_months).union(set(balcony_by_month))))
     for month in all_months:
         plot_nonmatched(meteo_by_months, balcony_by_month, month)
-        if month in matches_by_month:
-            matched_month = matches_by_month[month].data
-            m = matches_by_month[month].month
-            y = matches_by_month[month].year
-
+        if month in balcony_by_month and meteo_by_months:
+            matched_month = match_values(
+                meteo_by_months[month].data,
+                balcony_by_month[month].data,
+                ["temperature", "humidity", "dew_point"],
+            )
+            m = month[0]
+            y = month[1]
             plot_matched(
                 matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
             )
