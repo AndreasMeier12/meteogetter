@@ -1,11 +1,15 @@
 import datetime
 import math
+from functools import lru_cache
 from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import pandas
 import sqlalchemy
 from dateutil.rrule import rrule, MONTHLY
+from pandas import Timestamp
+from pytz import timezone
+from skyfield import api
 from sqlalchemy.orm import sessionmaker
 
 import models
@@ -13,14 +17,59 @@ from main import get_db_uri
 from mytypes import MonthResult
 
 ALIGNMENT_CUTOFF = datetime.timedelta(minutes=15)
+LATITUDE = 47.4
+LONGITUDE = 8.05
+TIMEZONE = timezone("Europe/Berlin")
+TOWN = api.wgs84.latlon(LATITUDE, LONGITUDE)
+EPH = api.load("de421.bsp")
+TIMESCALE = api.load.timescale()
+from skyfield import almanac
 
 
-def get_min_by_month():
-    pass
+def is_night(timestamp: Timestamp) -> bool:
+    timestamp_localized = TIMEZONE.localize(timestamp)
+    sunrise, sunset = (
+        Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
+    )
+    return timestamp_localized < sunrise or timestamp_localized > sunset
 
 
-def get_max_by_month():
-    pass
+def is_morning(timestamp: Timestamp) -> bool:
+    timestamp_localized = TIMEZONE.localize(timestamp)
+    sunrise, sunset = (
+        Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
+    )
+    noon = sunrise + ((sunset - sunrise) / 2)
+    return sunrise < timestamp_localized < noon
+
+    sunrise, sunset = (
+        Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
+    )
+
+
+def is_afternoon(timestamp: Timestamp) -> bool:
+    timestamp_localized = TIMEZONE.localize(timestamp)
+    sunrise, sunset = (
+        Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
+    )
+    noon = sunrise + ((sunset - sunrise) / 2)
+    return noon < timestamp_localized < sunset
+
+
+@lru_cache()
+def find_sunrise_sunset(timestamp: Timestamp):
+    start = TIMESCALE.from_datetime(
+        TIMEZONE.localize(
+            Timestamp(year=timestamp.year, month=timestamp.month, day=timestamp.day)
+        )
+    )
+    end = TIMESCALE.from_datetime((start + pandas.Timedelta(days=1)).utc_datetime())
+    return find_sunrise_sunset_helper(start, end)
+
+
+@lru_cache
+def find_sunrise_sunset_helper(start: datetime.datetime, end: datetime.datetime):
+    return almanac.find_discrete(start, end, almanac.sunrise_sunset(EPH, TOWN))
 
 
 def calculate_crude_dew_point_for_row(row: pandas.Series):
@@ -153,6 +202,9 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
             plot_matched(
                 matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
             )
+            plot_matched(
+                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+            )
 
             plot_matched(
                 matched_month, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
@@ -189,6 +241,19 @@ def plot_matched(
     if a.empty:
         return
     ax = a.plot(x="timestamp", y=colname)
+    ax.set_ylabel(label_name)
+    ax.set_xlabel("Date")
+    if y and m:
+        plt.title = f"{y} - {m}"
+    plt.show()
+
+
+def plot_matched_distributions(
+    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
+) -> None:
+    if a.empty:
+        return
+    ax = a.hist()
     ax.set_ylabel(label_name)
     ax.set_xlabel("Date")
     if y and m:
