@@ -26,7 +26,8 @@ TIMESCALE = api.load.timescale()
 from skyfield import almanac
 
 
-def is_night(timestamp: Timestamp) -> bool:
+def is_night(row: pandas.Series) -> bool:
+    timestamp = row["timestamp"]
     timestamp_localized = TIMEZONE.localize(timestamp)
     sunrise, sunset = (
         Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
@@ -34,7 +35,8 @@ def is_night(timestamp: Timestamp) -> bool:
     return timestamp_localized < sunrise or timestamp_localized > sunset
 
 
-def is_morning(timestamp: Timestamp) -> bool:
+def is_morning(row: pandas.Series) -> bool:
+    timestamp = row["timestamp"]
     timestamp_localized = TIMEZONE.localize(timestamp)
     sunrise, sunset = (
         Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
@@ -47,7 +49,8 @@ def is_morning(timestamp: Timestamp) -> bool:
     )
 
 
-def is_afternoon(timestamp: Timestamp) -> bool:
+def is_afternoon(row: pandas.Series) -> bool:
+    timestamp = row["timestamp"]
     timestamp_localized = TIMEZONE.localize(timestamp)
     sunrise, sunset = (
         Timestamp(ts_input=x.utc_datetime()) for x in find_sunrise_sunset(timestamp)[0]
@@ -215,6 +218,9 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
             )
 
             plot_matched(matched_month, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
+            plot_histogram_by_daytime(
+                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+            )
 
 
 def plot_nonmatched(meteo_by_months, balcony_by_month, month):
@@ -245,6 +251,30 @@ def plot_matched(
     ax.set_xlabel("Date")
     if y and m:
         plt.title = f"{y} - {m}"
+    plt.show()
+
+
+def plot_histogram_by_daytime(
+    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
+) -> None:
+    if a.empty:
+        return
+    morning = a[a.apply(lambda x: is_morning(x), axis=1)]
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.set_xlabel(f"{colname} morning {m}-{y}")
+    morning.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
+    plt.show()
+
+    afternoon = a[a.apply(lambda x: is_afternoon(x), axis=1)]
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.set_xlabel(f"{colname} afternoon {m}-{y}")
+    afternoon.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
+    plt.show()
+
+    night = a[a.apply(lambda x: is_night(x), axis=1)]
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.set_xlabel(f"{colname} night {m}-{y}")
+    night.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
     plt.show()
 
 
