@@ -1,14 +1,16 @@
 import datetime
+import math
+from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import pandas
 import sqlalchemy
 from dateutil.rrule import rrule, MONTHLY
 from sqlalchemy.orm import sessionmaker
-import math
 
 import models
 from main import get_db_uri
+from mytypes import MonthResult
 
 ALIGNMENT_CUTOFF = datetime.timedelta(minutes=15)
 
@@ -112,43 +114,77 @@ def print_stats(a: pandas.DataFrame, b: pandas.DataFrame) -> None:
     print(deltas)
 
 
-def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
-    start, end = min(meteo["timestamp"]), max(meteo["timestamp"])
+def filter_df_by_month(df: pandas.DataFrame, m: int, y: int):
+    df_a = df[df["timestamp"].dt.month == m]
+    df_f = df_a[df_a["timestamp"].dt.year == y]
+    df_f.name = meteo.name
+    return df_f
+
+
+def split_by_month_and_year(df: pandas.DataFrame) -> Dict[Tuple[int, int], MonthResult]:
+    start, end = min(df["timestamp"]), max(df["timestamp"])
     diff_month = lambda e, s: (e.year - s.year) * 12 + e.month - s.month
 
     months = [
         (d.month, d.year)
         for d in rrule(MONTHLY, count=diff_month(end, start) + 1, dtstart=start)
     ]
-    for m, y in months:
-        meteo_a = meteo[meteo["timestamp"].dt.month == m]
-        meteo_f = meteo_a[meteo_a["timestamp"].dt.year == y]
-        meteo_f.name = meteo.name
+    return {(m, y): MonthResult(filter_df_by_month(df, m, y), m, y) for m, y in months}
 
-        balcony_a = balcony[balcony["timestamp"].dt.month == m]
-        balcony_f = balcony_a[balcony_a["timestamp"].dt.month == m]
-        balcony_f.name = balcony.name
-        ax = meteo_f.plot(x="timestamp", y="temperature")
-        balcony_f.plot(x="timestamp", y="temperature", ax=ax)
+
+def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
+
+    matched_vals = match_values(
+        meteo, balcony, ["temperature", "humidity", "dew_point"]
+    )
+    matches_by_month = split_by_month_and_year(matched_vals)
+    meteo_by_months = split_by_month_and_year(meteo)
+    balcony_by_month = split_by_month_and_year(balcony)
+    all_months = sorted(
+        list(
+            set(matches_by_month).union(
+                set(meteo_by_months).union(set(balcony_by_month))
+            )
+        )
+    )
+    for month in all_months:
+        plot_nonmatched(meteo_by_months, balcony_by_month, month)
+        if month in matches_by_month:
+            matched_month = matches_by_month[month].data
+            m = matches_by_month[month].month
+            y = matches_by_month[month].year
+
+            plot_matched(
+                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+            )
+
+            plot_matched(
+                matched_month, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+            )
+
+            plot_matched(
+                matched_month, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
+            )
+
+            plot_matched(matched_month, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
+
+
+def plot_nonmatched(meteo_by_months, balcony_by_month, month):
+    if month in meteo_by_months and month in balcony_by_month:
+        ax = meteo_by_months[month].data.plot(x="timestamp", y="temperature")
+        balcony_by_month[month].data.plot(x="timestamp", y="temperature", ax=ax)
         ax.set_ylabel("Temperature /°C")
         ax.set_xlabel("Date")
-        plt.title = f"{y} - {m}"
+        plt.title = f"{month[0]} - {[1]}"
         plt.show()
-
-        matched_vals = match_values(
-            meteo_f, balcony_f, ["temperature", "humidity", "dew_point"]
-        )
-        plot_matched(matched_vals, "delta_temperature", "Δ Temperature /°C", m=m, y=y)
-
-        plot_matched(
-            matched_vals, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
-        )
-
-        plot_matched(
-            matched_vals, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
-        )
-
-        plot_matched(matched_vals, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
+    elif month in meteo_by_months:
+        ax = meteo_by_months[month].data.plot(x="timestamp", y="temperature")
+        ax.set_ylabel("Temperature /°C")
+        ax.set_xlabel("Date")
+    elif month in balcony_by_month:
+        ax = balcony_by_month[month].data.plot(x="timestamp", y="temperature")
+        ax.set_ylabel("Temperature /°C")
+        ax.set_xlabel("Date")
 
 
 def plot_matched(
