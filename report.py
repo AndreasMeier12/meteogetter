@@ -5,6 +5,7 @@ from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import pandas
+import seaborn as sns
 import sqlalchemy
 from dateutil.rrule import rrule, MONTHLY
 from pandas import Timestamp
@@ -185,7 +186,6 @@ def split_by_month_and_year(df: pandas.DataFrame) -> Dict[Tuple[int, int], Month
 
 
 def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
-
     matched_vals = match_values(
         meteo, balcony, ["temperature", "humidity", "dew_point"]
     )
@@ -225,20 +225,25 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
 
 def plot_nonmatched(meteo_by_months, balcony_by_month, month):
     if month in meteo_by_months and month in balcony_by_month:
-        ax = meteo_by_months[month].data.plot(x="timestamp", y="temperature")
-        balcony_by_month[month].data.plot(x="timestamp", y="temperature", ax=ax)
-        ax.set_ylabel("Temperature /°C")
-        ax.set_xlabel("Date")
-        plt.title = f"{month[0]} - {[1]}"
+        fig, ax = plt.subplots()
+        sns.lineplot(data=meteo_by_months[month].data, x="timestamp", y="temperature")
+        sns.lineplot(
+            data=balcony_by_month[month].data, x="timestamp", y="temperature"
+        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
+        plt.legend(labels=["meteo", "balcony"])
         plt.show()
     elif month in meteo_by_months:
-        ax = meteo_by_months[month].data.plot(x="timestamp", y="temperature")
-        ax.set_ylabel("Temperature /°C")
-        ax.set_xlabel("Date")
+        sns.lineplot(
+            data=meteo_by_months[month].data, x="timestamp", y="temperature"
+        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
+        plt.show()
+
     elif month in balcony_by_month:
-        ax = balcony_by_month[month].data.plot(x="timestamp", y="temperature")
-        ax.set_ylabel("Temperature /°C")
-        ax.set_xlabel("Date")
+        sns.lineplot(
+            data=balcony_by_month[month].data, x="timestamp", y="temperature"
+        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
+
+        plt.show()
 
 
 def plot_matched(
@@ -246,11 +251,7 @@ def plot_matched(
 ) -> None:
     if a.empty:
         return
-    ax = a.plot(x="timestamp", y=colname)
-    ax.set_ylabel(label_name)
-    ax.set_xlabel("Date")
-    if y and m:
-        plt.title = f"{y} - {m}"
+    sns.lineplot(data=a, x="timestamp", y=colname).set(title=f"{colname} {m}-{y}")
     plt.show()
 
 
@@ -260,34 +261,17 @@ def plot_histogram_by_daytime(
     if a.empty:
         return
     morning = a[a.apply(lambda x: is_morning(x), axis=1)]
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax.set_xlabel(f"{colname} morning {m}-{y}")
-    morning.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
+    sns.displot(data=morning[colname]).set(title=f"morning {m}-{y}", xlabel=label_name)
     plt.show()
 
     afternoon = a[a.apply(lambda x: is_afternoon(x), axis=1)]
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax.set_xlabel(f"{colname} afternoon {m}-{y}")
-    afternoon.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
+    sns.displot(data=afternoon[colname]).set(
+        title=f"afternoon {m}-{y}", xlabel=label_name
+    )
     plt.show()
 
     night = a[a.apply(lambda x: is_night(x), axis=1)]
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    ax.set_xlabel(f"{colname} night {m}-{y}")
-    night.hist(column=colname, legend=f"morning {m}-{y}", ax=ax)
-    plt.show()
-
-
-def plot_matched_distributions(
-    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
-) -> None:
-    if a.empty:
-        return
-    ax = a.hist()
-    ax.set_ylabel(label_name)
-    ax.set_xlabel("Date")
-    if y and m:
-        plt.title = f"{y} - {m}"
+    sns.displot(data=night[colname]).set(title=f"night {m}-{y}", xlabel=label_name)
     plt.show()
 
 
