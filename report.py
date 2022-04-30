@@ -221,7 +221,13 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
 
             plot_matched(matched_month, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
             plot_histogram_by_daytime(
-                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+                matched_month, month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+            )
+            plot_histogram_by_daytime(
+                matched_month, month, "delta_humidity", "Δ Temperature /°C", m=m, y=y
+            )
+            plot_histogram_by_daytime(
+                matched_month, month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
             )
 
 
@@ -247,8 +253,10 @@ def plot_line(melted: pandas.DataFrame):
         plotnine.ggplot(
             melted, plotnine.aes(x="timestamp", y="value", color="type", group="type")
         )
-        + plotnine.geom_point()
         + plotnine.geom_line()
+        + plotnine.theme(
+            axis_text_x=plotnine.element_text(angle=90), figure_size=(64, 8)
+        )
     )
     asdf.draw()
 
@@ -275,23 +283,38 @@ def plot_matched(
 
 
 def plot_histogram_by_daytime(
-    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
+    a: pandas.DataFrame,
+    month,
+    colname: str,
+    label_name: str,
+    y: int = None,
+    m: int = None,
 ) -> None:
     if a.empty:
         return
     morning = a[a.apply(lambda x: is_morning(x), axis=1)]
-    sns.displot(data=morning[colname]).set(title=f"morning {m}-{y}", xlabel=label_name)
-    plt.show()
+    (
+        plotnine.ggplot(data=morning)
+        + plotnine.aes(x=colname)
+        + plotnine.geom_histogram()
+        + plotnine.ggtitle(f"morning {colname} {month}")
+    ).draw()
 
     afternoon = a[a.apply(lambda x: is_afternoon(x), axis=1)]
-    sns.displot(data=afternoon[colname]).set(
-        title=f"afternoon {m}-{y}", xlabel=label_name
-    )
-    plt.show()
+    (
+        plotnine.ggplot(data=afternoon)
+        + plotnine.aes(x=colname)
+        + plotnine.geom_histogram()
+        + plotnine.ggtitle(f"afternoon {colname}  {month}")
+    ).draw()
 
     night = a[a.apply(lambda x: is_night(x), axis=1)]
-    sns.displot(data=night[colname]).set(title=f"night {m}-{y}", xlabel=label_name)
-    plt.show()
+    (
+        plotnine.ggplot(data=morning)
+        + plotnine.aes(x=colname)
+        + plotnine.geom_histogram()
+        + plotnine.ggtitle(f"night {colname} {month}")
+    ).draw()
 
 
 if __name__ == "__main__":
