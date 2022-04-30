@@ -5,6 +5,7 @@ from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
 import pandas
+import plotnine
 import seaborn as sns
 import sqlalchemy
 from dateutil.rrule import rrule, MONTHLY
@@ -21,6 +22,7 @@ ALIGNMENT_CUTOFF = datetime.timedelta(minutes=15)
 LATITUDE = 47.4
 LONGITUDE = 8.05
 TIMEZONE = timezone("Europe/Berlin")
+COLNAMES = ["temperature", "humidity", "dew_point"]
 TOWN = api.wgs84.latlon(LATITUDE, LONGITUDE)
 EPH = api.load("de421.bsp")
 TIMESCALE = api.load.timescale()
@@ -223,27 +225,44 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
             )
 
 
+def melt_concat(
+    meteo: pandas.DataFrame, balcony: pandas.DataFrame, colname: str
+) -> pandas.DataFrame:
+    m = meteo.filter(items=["timestamp", colname])
+    m["type"] = "meteo"
+    b = balcony.filter(items=["timestamp", colname])
+    b["type"] = "balcony"
+    c = pandas.concat([m, b])
+    return c.melt(id_vars=["timestamp", "type"])
+
+
+def time_melt(a: pandas.DataFrame, type) -> pandas.DataFrame:
+    b = a.copy()
+    b["type"] = type
+    return b.melt(id_vars=["timestamp", "type"])
+
+
+def plot_line(melted: pandas.DataFrame):
+    asdf = (
+        plotnine.ggplot(
+            melted, plotnine.aes(x="timestamp", y="value", color="type", group="type")
+        )
+        + plotnine.geom_point()
+        + plotnine.geom_line()
+    )
+    asdf.draw()
+
+
 def plot_nonmatched(meteo_by_months, balcony_by_month, month):
     if month in meteo_by_months and month in balcony_by_month:
-        fig, ax = plt.subplots()
-        sns.lineplot(data=meteo_by_months[month].data, x="timestamp", y="temperature")
-        sns.lineplot(
-            data=balcony_by_month[month].data, x="timestamp", y="temperature"
-        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
-        plt.legend(labels=["meteo", "balcony"])
-        plt.show()
+        temp = melt_concat(
+            meteo_by_months[month].data, balcony_by_month[month].data, "temperature"
+        )
+        plot_line(temp)
     elif month in meteo_by_months:
-        sns.lineplot(
-            data=meteo_by_months[month].data, x="timestamp", y="temperature"
-        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
-        plt.show()
-
+        plot_line(time_melt(meteo_by_months[month].data, "meteo"))
     elif month in balcony_by_month:
-        sns.lineplot(
-            data=balcony_by_month[month].data, x="timestamp", y="temperature"
-        ).set(title=f"temperature {month[0]}-{month[1]}", xlabel="Δ Temperature /°C")
-
-        plt.show()
+        plot_line(time_melt(balcony_by_month[month].data, "balcony"))
 
 
 def plot_matched(
