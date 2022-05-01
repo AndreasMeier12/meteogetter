@@ -220,15 +220,13 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
             )
 
             plot_matched(matched_month, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
-            plot_histogram_by_daytime(
-                matched_month, month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
-            )
-            plot_histogram_by_daytime(
-                matched_month, month, "delta_humidity", "Δ Temperature /°C", m=m, y=y
-            )
-            plot_histogram_by_daytime(
-                matched_month, month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
-            )
+    plot_histogram_by_daytime(
+        matched_vals, "delta_temperature", "Δ Temperature /°C", m=m, y=y
+    )
+    plot_histogram_by_daytime(matched_vals, "delta_humidity", "Δ Humidity %", m=m, y=y)
+    plot_histogram_by_daytime(
+        matched_month, "delta_dew_point", "Δ Dew Point /°C", m=m, y=y
+    )
 
 
 def melt_concat(
@@ -284,7 +282,6 @@ def plot_matched(
 
 def plot_histogram_by_daytime(
     a: pandas.DataFrame,
-    month,
     colname: str,
     label_name: str,
     y: int = None,
@@ -292,29 +289,25 @@ def plot_histogram_by_daytime(
 ) -> None:
     if a.empty:
         return
-    morning = a[a.apply(lambda x: is_morning(x), axis=1)]
-    (
-        plotnine.ggplot(data=morning)
-        + plotnine.aes(x=colname)
-        + plotnine.geom_histogram()
-        + plotnine.ggtitle(f"morning {colname} {month}")
-    ).draw()
+    b = a.copy()
+    b["year"] = b.timestamp.dt.year
+    b["month"] = b.timestamp.dt.month
 
-    afternoon = a[a.apply(lambda x: is_afternoon(x), axis=1)]
-    (
-        plotnine.ggplot(data=afternoon)
-        + plotnine.aes(x=colname)
-        + plotnine.geom_histogram()
-        + plotnine.ggtitle(f"afternoon {colname}  {month}")
-    ).draw()
+    plot_hists(b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name)
+    plot_hists(b[b.apply(lambda x: is_afternoon(x), axis=1)], colname, label_name)
+    plot_hists(b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name)
 
-    night = a[a.apply(lambda x: is_night(x), axis=1)]
-    (
-        plotnine.ggplot(data=morning)
+
+def plot_hists(c: pandas.DataFrame, colname: str, label_name: str):
+    plot = (
+        plotnine.ggplot(data=c)
         + plotnine.aes(x=colname)
         + plotnine.geom_histogram()
-        + plotnine.ggtitle(f"night {colname} {month}")
-    ).draw()
+        + plotnine.ggtitle(f"morning {colname}")
+        + plotnine.xlab(label_name)
+        + plotnine.facet_wrap("~ year + month")
+    )
+    plot.draw()
 
 
 if __name__ == "__main__":
