@@ -3,10 +3,8 @@ import math
 from functools import lru_cache
 from typing import Dict, Tuple
 
-import matplotlib.pyplot as plt
 import pandas
 import plotnine
-import seaborn as sns
 import sqlalchemy
 from dateutil.rrule import rrule, MONTHLY
 from pandas import Timestamp
@@ -26,6 +24,13 @@ COLNAMES = ["temperature", "humidity", "dew_point"]
 TOWN = api.wgs84.latlon(LATITUDE, LONGITUDE)
 EPH = api.load("de421.bsp")
 TIMESCALE = api.load.timescale()
+BASE_VARIABLES = {
+    "temperature": "Temperature / °C",
+    "humidity": "Humidity %",
+    "dew_point": "Dew point / °C",
+}
+SUFFIX_METEO = "_meteo"
+SUFFIX_BALCONY = "_balcony"
 from skyfield import almanac
 
 
@@ -194,39 +199,11 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
     meteo_by_months = split_by_month_and_year(meteo)
     balcony_by_month = split_by_month_and_year(balcony)
     all_months = sorted(list(set(meteo_by_months).union(set(balcony_by_month))))
-    for month in all_months:
-        plot_nonmatched(meteo_by_months, balcony_by_month, month)
-        if month in balcony_by_month and meteo_by_months:
-            matched_month = match_values(
-                meteo_by_months[month].data,
-                balcony_by_month[month].data,
-                ["temperature", "humidity", "dew_point"],
-            )
-            m = month[0]
-            y = month[1]
-            plot_matched(
-                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
-            )
-            plot_matched(
-                matched_month, "delta_temperature", "Δ Temperature /°C", m=m, y=y
-            )
+    plot_matched(matched_vals)
 
-            plot_matched(
-                matched_month, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
-            )
-
-            plot_matched(
-                matched_month, "delta_humidity", "Δ Realitive humidity /%", m=m, y=y
-            )
-
-            plot_matched(matched_month, "delta_dew_point", "Δ dew_point /°C", m=m, y=y)
-    plot_histogram_by_daytime(
-        matched_vals, "delta_temperature", "Δ Temperature /°C", m=m, y=y
-    )
-    plot_histogram_by_daytime(matched_vals, "delta_humidity", "Δ Humidity %", m=m, y=y)
-    plot_histogram_by_daytime(
-        matched_month, "delta_dew_point", "Δ Dew Point /°C", m=m, y=y
-    )
+    plot_histogram_by_daytime(matched_vals, "delta_temperature", "Δ Temperature /°C")
+    plot_histogram_by_daytime(matched_vals, "delta_humidity", "Δ Humidity %")
+    plot_histogram_by_daytime(matched_vals, "delta_dew_point", "Δ Dew Point /°C")
 
 
 def melt_concat(
@@ -246,56 +223,74 @@ def time_melt(a: pandas.DataFrame, type) -> pandas.DataFrame:
     return b.melt(id_vars=["timestamp", "type"])
 
 
-def plot_line(melted: pandas.DataFrame):
+def plot_line(melted: pandas.DataFrame, colname):
     asdf = (
         plotnine.ggplot(
             melted, plotnine.aes(x="timestamp", y="value", color="type", group="type")
         )
         + plotnine.geom_line()
         + plotnine.theme(
-            axis_text_x=plotnine.element_text(angle=90), figure_size=(64, 8)
+            axis_text_x=plotnine.element_text(angle=90), figure_size=(16, 8)
         )
+        + plotnine.ylab(BASE_VARIABLES[colname])
+        + plotnine.ggtitle(BASE_VARIABLES[colname])
+        + plotnine.facet_wrap("~ year + month", scales="free_x")
     )
     asdf.draw()
+    return asdf
 
 
-def plot_nonmatched(meteo_by_months, balcony_by_month, month):
-    if month in meteo_by_months and month in balcony_by_month:
-        temp = melt_concat(
-            meteo_by_months[month].data, balcony_by_month[month].data, "temperature"
-        )
-        plot_line(temp)
-    elif month in meteo_by_months:
-        plot_line(time_melt(meteo_by_months[month].data, "meteo"))
-    elif month in balcony_by_month:
-        plot_line(time_melt(balcony_by_month[month].data, "balcony"))
-
-
-def plot_matched(
-    a: pandas.DataFrame, colname: str, label_name: str, y: int = None, m: int = None
-) -> None:
-    if a.empty:
-        return
-    sns.lineplot(data=a, x="timestamp", y=colname).set(title=f"{colname} {m}-{y}")
-    plt.show()
+def plot_line_nonmelted(a: pandas.DataFrame, colname: str, label: str, m: int, y: int):
+    asdf = (
+        plotnine.ggplot(a, plotnine.aes(x="timestamp", y=colname))
+        + plotnine.geom_line()
+        + plotnine.theme(axis_text_x=plotnine.element_text(angle=90))
+        + plotnine.ggtitle(f"{label} {y}-{m}")
+    )
+    asdf.draw()
 
 
 def plot_histogram_by_daytime(
     a: pandas.DataFrame,
     colname: str,
     label_name: str,
-    y: int = None,
-    m: int = None,
 ) -> None:
     if a.empty:
         return
     b = a.copy()
     b["year"] = b.timestamp.dt.year
     b["month"] = b.timestamp.dt.month
-
     plot_hists(b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name)
     plot_hists(b[b.apply(lambda x: is_afternoon(x), axis=1)], colname, label_name)
     plot_hists(b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name)
+
+
+def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
+    b = a.melt(id_vars=["timestamp"])
+    meteo = b.query("variable==" + "'" + colname + SUFFIX_METEO + "'")
+    balcony = b.query("variable==" + "'" + colname + SUFFIX_BALCONY + "'")
+    meteo["type"] = "meteo"
+    balcony["variable"] = colname
+    balcony["type"] = "balcony"
+    meteo["variable"] = colname
+    c = pandas.concat([meteo, balcony])
+    c["year"] = c.timestamp.dt.year
+    c["month"] = c.timestamp.dt.month
+    return c
+
+
+def plot_matched(
+    a: pandas.DataFrame,
+) -> None:
+    if a.empty:
+        return
+    b = a.copy()
+    b["year"] = b.timestamp.dt.year
+    b["month"] = b.timestamp.dt.month
+    c = [(tidy_matched(b, k), k) for k, v in BASE_VARIABLES.items()]
+    plots = [plot_line(x, y) for x, y in c]
+
+    return plots
 
 
 def plot_hists(c: pandas.DataFrame, colname: str, label_name: str):
@@ -311,18 +306,17 @@ def plot_hists(c: pandas.DataFrame, colname: str, label_name: str):
 
 
 if __name__ == "__main__":
-    with plt.style.context("dark_background"):
-        engine = sqlalchemy.create_engine(get_db_uri())
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        temps = (
-            session.query(models.TemperatureMeasurement)
-            .filter(models.TemperatureMeasurement.station_id == 24)
-            .all()
-        )
-        meteo = fetch_meteo_dataframe(session)
+    engine = sqlalchemy.create_engine(get_db_uri())
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    temps = (
+        session.query(models.TemperatureMeasurement)
+        .filter(models.TemperatureMeasurement.station_id == 24)
+        .all()
+    )
+    meteo = fetch_meteo_dataframe(session)
 
-        balcony = read_balcony_data()
-        plot_by_month(balcony, meteo)
+    balcony = read_balcony_data()
+    plot_by_month(balcony, meteo)
 
-        print_stats(balcony, meteo)
+    print_stats(balcony, meteo)
