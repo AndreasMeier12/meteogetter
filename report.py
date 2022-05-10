@@ -260,9 +260,13 @@ def plot_histogram_by_daytime(
     b = a.copy()
     b["year"] = b.timestamp.dt.year
     b["month"] = b.timestamp.dt.month
-    plot_hists(b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name)
-    plot_hists(b[b.apply(lambda x: is_afternoon(x), axis=1)], colname, label_name)
-    plot_hists(b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name)
+    plot_hists(
+        b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name, "morning"
+    )
+    plot_hists(
+        b[b.apply(lambda x: is_afternoon(x), axis=1)], colname, label_name, "afternoon"
+    )
+    plot_hists(b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name, "night")
 
 
 def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
@@ -293,7 +297,7 @@ def plot_matched(
     return plots
 
 
-def plot_hists(c: pandas.DataFrame, colname: str, label_name: str):
+def plot_hists(c: pandas.DataFrame, colname: str, label_name: str, daytime: str):
     plot = (
         plotnine.ggplot(data=c)
         + plotnine.aes(x=colname)
@@ -301,6 +305,7 @@ def plot_hists(c: pandas.DataFrame, colname: str, label_name: str):
         + plotnine.ggtitle(f"morning {colname}")
         + plotnine.xlab(label_name)
         + plotnine.facet_wrap("~ year + month")
+        + plotnine.themes.theme_dark()
     )
     plot.draw()
 
