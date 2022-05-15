@@ -1,6 +1,7 @@
 import datetime
 import math
 import os.path
+import typing
 from functools import lru_cache
 from typing import Dict, Tuple
 
@@ -30,6 +31,9 @@ BASE_VARIABLES = {
     "humidity": "Humidity %",
     "dew_point": "Dew point / °C",
 }
+NAME_BALCONY = "balcony"
+NAME_METEO = "meteo"
+
 SUFFIX_METEO = "_meteo"
 SUFFIX_BALCONY = "_balcony"
 PATH_REPORT = "report/"
@@ -163,17 +167,25 @@ def statsify(a: pandas.DataFrame):
     return b.join(c, rsuffix="_low").join(d, rsuffix="_high")
 
 
-def print_stats(a: pandas.DataFrame, b: pandas.DataFrame) -> None:
-    a_new = statsify(a)
-    b_new = statsify(b)
-    deltas = a_new.sub(b_new)
-    deltas.name = "deltas"
-    a_new.name = a.name
-    b_new.name = b.name
+def write_stats(
+    a: typing.Tuple[pandas.DataFrame, str], b: typing.Tuple[pandas.DataFrame, str]
+) -> None:
+    path_a = os.path.join(PATH_REPORT, f"{a[1]}.html")
+    path_b = os.path.join(PATH_REPORT, f"{b[1]}.html")
+    path_delta = os.path.join(PATH_REPORT, f"delta.html")
+    with open(path_a, "w") as file_a, open(path_b, "w") as file_b, open(
+        path_delta, "w"
+    ) as file_delta:
 
-    print(a_new)
-    print(b_new)
-    print(deltas)
+        a_new: pandas.DataFrame = statsify(a[0])
+        b_new: pandas.DataFrame = statsify(b[0])
+        deltas: pandas.DataFrame = a_new.sub(b_new)
+        deltas.name = "deltas"
+        a_new.name = a[0].name
+        b_new.name = b[0].name
+        file_a.write(a_new.to_html())
+        file_b.write(b_new.to_html())
+        file_delta.write(deltas.to_html())
 
 
 def filter_df_by_month(df: pandas.DataFrame, m: int, y: int):
@@ -335,4 +347,4 @@ if __name__ == "__main__":
     plots = plot_by_month(balcony, meteo)
 
     write_plots(plots)
-    print_stats(balcony, meteo)
+    write_stats((balcony, NAME_BALCONY), (meteo, NAME_METEO))
