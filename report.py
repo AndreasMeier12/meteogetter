@@ -1,5 +1,6 @@
 import datetime
 import math
+import os.path
 from functools import lru_cache
 from typing import Dict, Tuple
 
@@ -31,6 +32,7 @@ BASE_VARIABLES = {
 }
 SUFFIX_METEO = "_meteo"
 SUFFIX_BALCONY = "_balcony"
+PATH_REPORT = "report/"
 from skyfield import almanac
 
 
@@ -199,11 +201,14 @@ def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
     meteo_by_months = split_by_month_and_year(meteo)
     balcony_by_month = split_by_month_and_year(balcony)
     all_months = sorted(list(set(meteo_by_months).union(set(balcony_by_month))))
-    plot_matched(matched_vals)
+    a = plot_matched(matched_vals)
 
-    plot_histogram_by_daytime(matched_vals, "delta_temperature", "Δ Temperature /°C")
-    plot_histogram_by_daytime(matched_vals, "delta_humidity", "Δ Humidity %")
-    plot_histogram_by_daytime(matched_vals, "delta_dew_point", "Δ Dew Point /°C")
+    b = plot_histogram_by_daytime(
+        matched_vals, "delta_temperature", "Δ Temperature /°C"
+    )
+    c = plot_histogram_by_daytime(matched_vals, "delta_humidity", "Δ Humidity %")
+    d = plot_histogram_by_daytime(matched_vals, "delta_dew_point", "Δ Dew Point /°C")
+    return a + b + c + d
 
 
 def melt_concat(
@@ -235,19 +240,11 @@ def plot_line(melted: pandas.DataFrame, colname):
         + plotnine.ylab(BASE_VARIABLES[colname])
         + plotnine.ggtitle(BASE_VARIABLES[colname])
         + plotnine.facet_wrap("~ year + month", scales="free_x")
+        + plotnine.themes.theme_dark()
     )
+    filename = f"{colname}.pdf"
     asdf.draw()
-    return asdf
-
-
-def plot_line_nonmelted(a: pandas.DataFrame, colname: str, label: str, m: int, y: int):
-    asdf = (
-        plotnine.ggplot(a, plotnine.aes(x="timestamp", y=colname))
-        + plotnine.geom_line()
-        + plotnine.theme(axis_text_x=plotnine.element_text(angle=90))
-        + plotnine.ggtitle(f"{label} {y}-{m}")
-    )
-    asdf.draw()
+    return (asdf, filename)
 
 
 def plot_histogram_by_daytime(
@@ -260,13 +257,20 @@ def plot_histogram_by_daytime(
     b = a.copy()
     b["year"] = b.timestamp.dt.year
     b["month"] = b.timestamp.dt.month
-    plot_hists(
-        b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name, "morning"
-    )
-    plot_hists(
-        b[b.apply(lambda x: is_afternoon(x), axis=1)], colname, label_name, "afternoon"
-    )
-    plot_hists(b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name, "night")
+    return [
+        plot_hists(
+            b[b.apply(lambda x: is_morning(x), axis=1)], colname, label_name, "morning"
+        ),
+        plot_hists(
+            b[b.apply(lambda x: is_afternoon(x), axis=1)],
+            colname,
+            label_name,
+            "afternoon",
+        ),
+        plot_hists(
+            b[b.apply(lambda x: is_night(x), axis=1)], colname, label_name, "night"
+        ),
+    ]
 
 
 def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
@@ -302,12 +306,18 @@ def plot_hists(c: pandas.DataFrame, colname: str, label_name: str, daytime: str)
         plotnine.ggplot(data=c)
         + plotnine.aes(x=colname)
         + plotnine.geom_histogram()
-        + plotnine.ggtitle(f"morning {colname}")
+        + plotnine.ggtitle(f"{daytime} {colname}")
         + plotnine.xlab(label_name)
         + plotnine.facet_wrap("~ year + month")
         + plotnine.themes.theme_dark()
     )
-    plot.draw()
+    filename = f"{colname}_{daytime}.pdf"
+    return (plot, filename)
+
+
+def write_plots(plots_and_names):
+    for plot, name in plots_and_names:
+        plot.save(filename=os.path.join(PATH_REPORT, name))
 
 
 if __name__ == "__main__":
@@ -322,6 +332,7 @@ if __name__ == "__main__":
     meteo = fetch_meteo_dataframe(session)
 
     balcony = read_balcony_data()
-    plot_by_month(balcony, meteo)
+    plots = plot_by_month(balcony, meteo)
 
+    write_plots(plots)
     print_stats(balcony, meteo)
