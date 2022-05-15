@@ -255,7 +255,6 @@ def plot_line(melted: pandas.DataFrame, colname):
         + plotnine.themes.theme_dark()
     )
     filename = f"{colname}.pdf"
-    asdf.draw()
     return (asdf, filename)
 
 
