@@ -17,7 +17,7 @@ import models
 from main import get_db_uri
 from mytypes import MonthResult
 
-ALIGNMENT_CUTOFF = datetime.timedelta(minutes=15)
+ALIGNMENT_CUTOFF = datetime.timedelta(minutes=30)
 LATITUDE = 47.4
 LONGITUDE = 8.05
 TIMEZONE = timezone("Europe/Berlin")
