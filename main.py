@@ -3,14 +3,13 @@ import io
 import logging
 import os
 from sqlite3 import Cursor
-from time import sleep
 
 import aiohttp
 import dateutil
 import pandas
 import sqlalchemy
-from sqlalchemy.orm import sessionmaker
 from returns.result import Result, safe
+from sqlalchemy.orm import sessionmaker
 
 import models
 
@@ -108,8 +107,8 @@ def data_row_to_station(a):
             abbr=b["Abbr."],
             latitude=b["Latitude"],
             longitude=b["Longitude"],
-            altitude=b["Measurement height m. a. sea level"],
-            height=b["Measurement height m. a. sea level"],
+            altitude=b["Measurement height m a. sea level"],
+            height=b["More information m a. ground"],
         )
         return x
     except Exception as e:
