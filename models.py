@@ -1,8 +1,10 @@
+import datetime
+
 import dateutil
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, orm
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, orm, DateTime
 
 
 class Station(Base):
@@ -107,3 +109,16 @@ class WindMeasurement(Base):
             "timestamp": self.timestamp,
             "station_id": self.station_id,
         }
+
+
+class Notification(Base):
+    __tablename__ = "notification"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    timestamp = Column(DateTime, primary_key=False)
+
+    def __init__(self, timestamp: datetime.datetime):
+        self.timestamp = timestamp
+
+    @orm.reconstructor
+    def init_on_load(self):
+        self.timestamp = dateutil.parser.parse(self.timestamp)

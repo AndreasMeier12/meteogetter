@@ -192,7 +192,6 @@ def handle_measurements(a: [pandas.DataFrame], station_ids: dict, session):
         bwoken = bwoken + errors
     session.add_all(vals)
     session.commit()
-    logging.error(bwoken)
 
 
 def main(name):
