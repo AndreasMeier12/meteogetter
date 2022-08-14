@@ -1,6 +1,7 @@
 # Import smtplib for the actual sending function
 import smtplib
 from datetime import datetime, timedelta
+from origamibot import OrigamiBot as Bot
 
 # Import the email modules we'll need
 from email.message import EmailMessage
@@ -16,15 +17,10 @@ from main import get_db_uri
 def send_notification(content: str, session: Session = None):
     message = EmailMessage()
     message.set_content(content)
-    message["Subject"] = "Meteo getting failure"
-    message["From"] = "meteogetter"
     config = yaml.safe_load(open("conf/monitor.yaml"))
-    message["To"] = config["address"]
 
-    # Send the message via our own SMTP server.
-    s = smtplib.SMTP("localhost")
-    s.send_message(message)
-    s.quit()
+    bot = Bot(config["token"])
+    bot.send_message(config["chat_id"], content)
 
     if session:
         record = models.Notification(datetime.now())
