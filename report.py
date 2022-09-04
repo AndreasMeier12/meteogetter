@@ -118,7 +118,10 @@ def pair_closest_datapoint_in_time(
             res[f"{colname}_{b.name}"] = (asdf[colname]).values[0]
             res[f"delta_{colname}"] = (asdf[colname] - a[colname]).values[0]
         res["timestamp"] = timestamp
-        return pandas.Series(res)
+        series = pandas.Series(res)
+        if series.isnull().any():
+            return None
+        return series
 
 
 def match_values(
