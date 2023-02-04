@@ -8,8 +8,12 @@ from typing import Dict, Tuple
 import pandas
 import plotnine
 import sqlalchemy
+
+from mizani.breaks import date_breaks
+from mizani.formatters import date_format
 from dateutil.rrule import rrule, MONTHLY
 from pandas import Timestamp
+from plotnine import labeller
 from pytz import timezone
 from skyfield import api
 from sqlalchemy.orm import sessionmaker
@@ -243,6 +247,32 @@ def time_melt(a: pandas.DataFrame, type) -> pandas.DataFrame:
     return b.melt(id_vars=["timestamp", "type"])
 
 
+months = {
+    1: "Jan",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Aug",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dec",
+}
+
+
+def labeller_month(a) -> str:
+    try:
+        b = int(a)
+        if 1 <= b <= 12:
+            return months[b]
+    except Exception:
+        pass
+    return ""
+
+
 def plot_line(melted: pandas.DataFrame, colname):
     asdf = (
         plotnine.ggplot(
@@ -250,12 +280,24 @@ def plot_line(melted: pandas.DataFrame, colname):
         )
         + plotnine.geom_line()
         + plotnine.theme(
-            axis_text_x=plotnine.element_text(angle=90), figure_size=(16, 8)
+            axis_text_x=plotnine.element_text(angle=90), figure_size=(32, 16)
         )
         + plotnine.ylab(BASE_VARIABLES[colname])
         + plotnine.ggtitle(BASE_VARIABLES[colname])
-        + plotnine.facet_wrap("~ year + month", scales="free_x")
+        + plotnine.facet_wrap(
+            "~ year + month",
+            scales="free_x",
+            labeller=labeller(
+                cols=labeller_month,
+                rows=labeller_month,
+                defaults=labeller_month,
+                multi_line=False,
+            ),
+        )
         + plotnine.themes.theme_dark()
+        + plotnine.scale_x_datetime(
+            breaks=date_breaks("1 week"), labels=date_format("%e")
+        )
     )
     filename = f"{colname}.pdf"
     return (asdf, filename)
@@ -322,7 +364,15 @@ def plot_hists(c: pandas.DataFrame, colname: str, label_name: str, daytime: str)
         + plotnine.geom_histogram()
         + plotnine.ggtitle(f"{daytime} {colname}")
         + plotnine.xlab(label_name)
-        + plotnine.facet_wrap("~ year + month")
+        + plotnine.facet_wrap(
+            "~ year + month",
+            labeller=labeller(
+                cols=labeller_month,
+                rows=labeller_month,
+                default=labeller_month,
+                multi_line=False,
+            ),
+        )
         + plotnine.themes.theme_dark()
     )
     filename = f"{colname}_{daytime}.pdf"
