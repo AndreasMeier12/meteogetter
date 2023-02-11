@@ -280,19 +280,10 @@ def plot_line(melted: pandas.DataFrame, colname):
         )
         + plotnine.ylab(BASE_VARIABLES[colname])
         + plotnine.ggtitle(BASE_VARIABLES[colname])
-        + plotnine.facet_wrap(
-            "~ year + month",
-            scales="free_x",
-            labeller=labeller(
-                cols=labeller_month,
-                rows=labeller_month,
-                defaults=labeller_month,
-                multi_line=False,
-            ),
-        )
+        + plotnine.xlab("Month")
         + plotnine.themes.theme_dark()
         + plotnine.scale_x_datetime(
-            breaks=date_breaks("1 week"), labels=date_format("%e")
+            breaks=date_breaks("1 month"), labels=date_format("%m")
         )
     )
     filename = f"{colname}.pdf"
@@ -361,7 +352,7 @@ def plot_hists(c: pandas.DataFrame, colname: str, label_name: str, daytime: str)
         + plotnine.ggtitle(f"{daytime} {colname}")
         + plotnine.xlab(label_name)
         + plotnine.facet_wrap(
-            "~ year + month",
+            "~  month",
             labeller=labeller(
                 cols=labeller_month,
                 rows=labeller_month,
