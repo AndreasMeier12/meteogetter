@@ -4,6 +4,7 @@ import os.path
 import typing
 from functools import lru_cache
 from typing import Dict, Tuple
+import argparse
 
 import pandas
 import plotnine
@@ -37,6 +38,7 @@ BASE_VARIABLES = {
 }
 NAME_BALCONY = "balcony"
 NAME_METEO = "meteo"
+TEMP_PATH = "temp_matched_vals.csv"
 
 SUFFIX_METEO = "_meteo"
 SUFFIX_BALCONY = "_balcony"
@@ -213,13 +215,7 @@ def split_by_month_and_year(df: pandas.DataFrame) -> Dict[Tuple[int, int], Month
     return {(m, y): MonthResult(filter_df_by_month(df, m, y), m, y) for m, y in months}
 
 
-def plot_by_month(balcony: pandas.DataFrame, meteo: pandas.DataFrame):
-    matched_vals = match_values(
-        meteo, balcony, ["temperature", "humidity", "dew_point"]
-    )
-    meteo_by_months = split_by_month_and_year(meteo)
-    balcony_by_month = split_by_month_and_year(balcony)
-    all_months = sorted(list(set(meteo_by_months).union(set(balcony_by_month))))
+def plot_by_month(matched_vals: pandas.DataFrame):
     a = plot_matched(matched_vals)
 
     b = plot_histogram_by_daytime(
@@ -384,19 +380,46 @@ def write_plots(plots_and_names):
         plot.save(filename=os.path.join(PATH_REPORT, name))
 
 
-if __name__ == "__main__":
-    engine = sqlalchemy.create_engine(get_db_uri())
-    Session = sessionmaker(bind=engine)
-    session = Session()
+def load_matched_vals():
+    return pandas.read_csv(TEMP_PATH, parse_dates=["timestamp"])
+
+
+def compute_matched_vals(meteo, balcony):
     temps = (
         session.query(models.TemperatureMeasurement)
         .filter(models.TemperatureMeasurement.station_id == 24)
         .all()
     )
-    meteo = fetch_meteo_dataframe(session)
+    matched_vals = match_values(
+        meteo, balcony, ["temperature", "humidity", "dew_point"]
+    )
+    if args.save:
+        matched_vals.to_csv()
+    return matched_vals
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-l",
+        "--load",
+        help="Load previous derived data. Program will not work if there is none",
+        action="store_true",
+    )
+    parser.add_argument("-s", "--save", help="Save derived data", action="store_true")
+    args = parser.parse_args()
+    engine = sqlalchemy.create_engine(get_db_uri())
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    meteo = fetch_meteo_dataframe(session)
     balcony = read_balcony_data()
-    plots = plot_by_month(balcony, meteo)
+    matched_vals = (
+        load_matched_vals() if args.load else compute_matched_vals(meteo, balcony)
+    )
+    if args.save:
+        matched_vals.to_csv(TEMP_PATH)
+
+    plots = plot_by_month(matched_vals)
 
     write_plots(plots)
     write_stats((balcony, NAME_BALCONY), (meteo, NAME_METEO))
