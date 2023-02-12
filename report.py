@@ -269,10 +269,13 @@ def labeller_month(a) -> str:
     return ""
 
 
-def plot_line(melted: pandas.DataFrame, colname):
+def plot_line(melted: pandas.DataFrame, colname, month: int = None):
+    my_filter = melted["month"] == 6
+    data = melted.loc[my_filter] if month else melted
+
     asdf = (
         plotnine.ggplot(
-            melted, plotnine.aes(x="timestamp", y="value", color="type", group="type")
+            data, plotnine.aes(x="timestamp", y="value", color="type", group="type")
         )
         + plotnine.geom_line()
         + plotnine.theme(
@@ -286,7 +289,7 @@ def plot_line(melted: pandas.DataFrame, colname):
             breaks=date_breaks("1 month"), labels=date_format("%m")
         )
     )
-    filename = f"{colname}.pdf"
+    filename = f"{colname}-{month}.pdf" if month else f"{colname}.pdf"
     return (asdf, filename)
 
 
@@ -339,7 +342,7 @@ def plot_matched(
     b["year"] = b.timestamp.dt.year
     b["month"] = b.timestamp.dt.month
     c = [(tidy_matched(b, k), k) for k, v in BASE_VARIABLES.items()]
-    plots = [plot_line(x, y) for x, y in c]
+    plots = [plot_line(x, y) for x, y in c] + [plot_line(x, y, 6) for x, y in c]
 
     return plots
 
