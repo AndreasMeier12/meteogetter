@@ -321,8 +321,8 @@ def plot_histogram_by_daytime(
 
 def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
     b = a.melt(id_vars=["timestamp"])
-    meteo = b.query("variable==" + "'" + colname + SUFFIX_METEO + "'")
-    balcony = b.query("variable==" + "'" + colname + SUFFIX_BALCONY + "'")
+    meteo = b.query("variable==" + "'" + colname + SUFFIX_METEO + "'").copy()
+    balcony = b.query("variable==" + "'" + colname + SUFFIX_BALCONY + "'").copy()
     meteo["type"] = "meteo"
     balcony["variable"] = colname
     balcony["type"] = "balcony"
