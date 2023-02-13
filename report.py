@@ -39,7 +39,7 @@ BASE_VARIABLES = {
 NAME_BALCONY = "balcony"
 NAME_METEO = "meteo"
 TEMP_PATH = "temp_matched_vals.csv"
-
+TEMP_PATH_TIDIED = "temp_tidied.pickle"
 SUFFIX_METEO = "_meteo"
 SUFFIX_BALCONY = "_balcony"
 PATH_REPORT = "report/"
@@ -320,6 +320,8 @@ def plot_histogram_by_daytime(
 
 
 def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
+    if args.load:
+        pandas.read_pickle(TEMP_PATH_TIDIED)
     b = a.melt(id_vars=["timestamp"])
     meteo = b.query("variable==" + "'" + colname + SUFFIX_METEO + "'").copy()
     balcony = b.query("variable==" + "'" + colname + SUFFIX_BALCONY + "'").copy()
@@ -330,6 +332,8 @@ def tidy_matched(a: pandas.DataFrame, colname: str) -> pandas.DataFrame:
     c = pandas.concat([meteo, balcony])
     c["year"] = c.timestamp.dt.year
     c["month"] = c.timestamp.dt.month
+    if args.save:
+        c.to_pickle(TEMP_PATH_TIDIED)
     return c
 
 
