@@ -185,6 +185,7 @@ def write_stats(
     with open(path_a, "w") as file_a, open(path_b, "w") as file_b, open(
         path_delta, "w"
     ) as file_delta:
+        counts = a[0].resample("M", on="timestamp").count()['temperature'].rename("count")
 
         a_new: pandas.DataFrame = statsify(a[0])
         b_new: pandas.DataFrame = statsify(b[0])
@@ -192,9 +193,9 @@ def write_stats(
         deltas.name = "deltas"
         a_new.name = a[0].name
         b_new.name = b[0].name
-        file_a.write(a_new.to_html())
-        file_b.write(b_new.to_html())
-        file_delta.write(deltas.to_html())
+        file_a.write(a_new.join(counts).to_html())
+        file_b.write(b_new.join(counts).to_html())
+        file_delta.write(deltas.join(counts).to_html())
 
 
 def filter_df_by_month(df: pandas.DataFrame, m: int, y: int):
